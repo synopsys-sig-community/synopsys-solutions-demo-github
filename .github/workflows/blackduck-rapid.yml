@@ -32,8 +32,8 @@ jobs:
         #  NODE_EXTRA_CA_CERTS: ${{ secrets.LOCAL_CA_CERT_PATH }}
         # Enable diagnostic mode
         env:
-          DETECT_DIAGNOSTIC: 1
-        #  DETECT_DIAGNOSTIC_EXTENDED: 1
+          DETECT_DIAGNOSTIC: true
+        #  DETECT_DIAGNOSTIC_EXTENDED: true
         with:
             scan-mode: RAPID
             github-token: ${{ secrets.GITHUB_TOKEN }}
