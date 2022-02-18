@@ -2,3 +2,4 @@ This is just text.
 This is more text.
 This is more and more text.
 more...
+hello from feature branch 3.
