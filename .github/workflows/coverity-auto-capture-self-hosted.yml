@@ -146,20 +146,30 @@ jobs:
             --checkoutPath $GITHUB_REPOSITORY `pwd` $GITHUB_SHA \
             --outputFile synopsys-coverity-github-sarif.json
 
+      #- name: Comment on pull request (Incremental)
+      #  run: |
+      #    export COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-$BASE_BRANCH
+      #    git fetch --unshallow
+      #    python3 ./synopsys-github-tools/github-coverity-comment-on-pull-request.py \
+      #      --coverity-json coverity-incremental-results.json \
+      #      --url $COVERITY_URL \
+      #      --stream $COVERITY_STREAM_NAME \
+      #      --debug 9 \
+      #      --sigma-json ./sigma-results.json
+      #  if: ${{github.event_name == 'pull_request'}}
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #    BASE_BRANCH: ${{ github.base_ref }}
+      
       - name: Comment on pull request (Incremental)
-        run: |
-          export COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-$BASE_BRANCH
-          git fetch --unshallow
-          python3 ./synopsys-github-tools/github-coverity-comment-on-pull-request.py \
-            --coverity-json coverity-incremental-results.json \
-            --url $COVERITY_URL \
-            --stream $COVERITY_STREAM_NAME \
-            --debug 9 \
-            --sigma-json ./sigma-results.json
-        if: ${{github.event_name == 'pull_request'}}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_BRANCH: ${{ github.base_ref }}
+        uses: jcroall/coverity-report-output-v7-json@v0.1.0jc
+        with:
+          json-file-path: ./coverity-incremental-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          coverity-url: ${{ secrets.COVERITY_URL }}
+          coverity-username: ${{ secrets.COVERITY_USER }}
+          coverity-password: ${{ secrets.COVERITY_PASSPHRASE }}
+          coverity-project-name: synopsys-solutions-demo-github-master
 
       - name: Upload SARIF file
         if: ${{github.event_name == 'push'}}
@@ -175,4 +185,3 @@ jobs:
           COVERITY_VIEW_ESCAPED=`jq -rn --arg x "$SECURITY_GATE_VIEW" '$x|@uri'`
           curl -kfLsS --user $COV_USER:$COVERITY_PASSPHRASE $COVERITY_URL/api/viewContents/issues/v1/$COVERITY_VIEW_ESCAPED?projectId=$COVERITY_STREAM_NAME > security-gate-results.json
           if [ $(cat security-gate-results.json | jq .viewContentsV1.totalRows) -ne 0 ]; then cat security-gate-results.json | jq .viewContentsV1.rows; exit 1; fi
-
