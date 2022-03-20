@@ -112,6 +112,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         id: changeset
         uses: jitterbit/get-changed-files@v1
+        continue-on-error: true
 
       # On a pull request, run an incremental analysis. This uses auto
       # capture as well, and references a stream that was presumably
