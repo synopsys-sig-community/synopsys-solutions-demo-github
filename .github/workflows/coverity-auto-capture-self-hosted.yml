@@ -246,10 +246,9 @@ jobs:
           if [ $(cat security-gate-results.json | jq .viewContentsV1.totalRows) -ne 0 ]; then
             echo Security gate found policy violations
             cat security-gate-results.json | jq .viewContentsV1.rows
-            export SECURITY_GATE_STATUS="failure"
-            echo "::set-env name=SECURITY_GATE_STATUS::$SECURITY_GATE_STATUS"
+            echo "SECURITY_GATE_STATUS=failure" >> $GITHUB_ENV
           else
-            export SECURITY_GATE_STATUS="success"
+            echo "SECURITY_GATE_STATUS=success" >> $GITHUB_ENV
           fi
 
       - uses: ouzi-dev/commit-status-updater@v1.1.0
