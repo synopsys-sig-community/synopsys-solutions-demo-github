@@ -223,7 +223,6 @@ jobs:
           coverity-project-name: ${{ github.event.repository.name }}
           coverity-username: ${{ secrets.COV_USER }}
           coverity-password: ${{ secrets.COVERITY_PASSPHRASE }}
->>>>>>> 8d62bed722ff23a189033b39ed8b691678e14cc8
 
       - name: Upload SARIF file
         if: ${{github.event_name == 'push'}}
