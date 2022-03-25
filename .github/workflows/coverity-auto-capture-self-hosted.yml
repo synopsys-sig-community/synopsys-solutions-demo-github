@@ -244,6 +244,7 @@ jobs:
           COVERITY_VIEW_ESCAPED=`jq -rn --arg x "$SECURITY_GATE_VIEW" '$x|@uri'`
           curl -kfLsS --user $COV_USER:$COVERITY_PASSPHRASE $COVERITY_URL/api/viewContents/issues/v1/$COVERITY_VIEW_ESCAPED?projectId=$COVERITY_STREAM_NAME > security-gate-results.json
           if [ $(cat security-gate-results.json | jq .viewContentsV1.totalRows) -ne 0 ]; then
+            echo Security gate found policy violations
             cat security-gate-results.json | jq .viewContentsV1.rows
             export SECURITY_GATE_STATUS="failure"
             echo "::set-env name=SECURITY_GATE_STATUS::$SECURITY_GATE_STATUS"
