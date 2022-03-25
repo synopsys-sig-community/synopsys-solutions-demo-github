@@ -162,7 +162,7 @@ jobs:
             echo ${changed_file} >> coverity-files-to-scan.txt
             echo "Scan changed file ${changed_file}."
           done
-          cov-capture --dir idir
+          cov-capture --dir idir --project-dir .
           cov-run-desktop --dir idir --strip-path `pwd` --url $COVERITY_URL --stream $COVERITY_STREAM_NAME --present-in-reference false \
             --ignore-uncapturable-inputs true \
             --security-file coverity-license.dat \
