@@ -188,7 +188,7 @@ jobs:
           # in the pull request.
           coverity-url: ${{ secrets.COVERITY_URL }}
           coverity-project-name: ${{ github.event.repository.name }}
-          coverity-username: ${{ secrets.COV_USER }}
+          coverity-username: ${{ secrets.COVERITY_USER }}
           coverity-password: ${{ secrets.COVERITY_PASSPHRASE }}
 
       # Generate SARIF using Coverity's built-in tool. Note that this is not
