@@ -251,6 +251,22 @@ jobs:
             echo "SECURITY_GATE_STATUS=success" >> $GITHUB_ENV
           fi
 
+      # For a pull request, until the GitHub action supports this, we
+      # will run a preview commit and check how many newly introduced
+      # issues are being reported.
+
+      - name: Coverity Security Gate
+        if: ${{github.event_name == 'pull_request'}}
+        run: |
+          COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-${GITHUB_REF##*/}
+          cov-commit-defects --dir idir --url ${COVERITY_URL} --preview-report-v2 preview-report.json --stream ${COVERITY_STREAM_NAME}
+          NUM_NEW_DEFECTS=`cat preview-report.json | jq -re .issueInfo[].presentInComparisonSnapshot | grep false | wc -l`
+          if [ ${NUM_NEW_DEFECTS} -gt 0 ]; then
+            echo "SECURITY_GATE_STATUS=failure" >> $GITHUB_ENV
+          else
+            echo "SECURITY_GATE_STATUS=success" >> $GITHUB_ENV
+          fi
+
       - uses: ouzi-dev/commit-status-updater@v1.1.0
         with:
           name: "Coverity Policy Check"
