@@ -237,7 +237,7 @@ jobs:
       # party commit-status-updater to set the Coverity Policy Check status
       # to "failure." If no violations, set it to "success."
 
-      - name: Coverity Security Gate
+      - name: Coverity Security Gate (Full analysis)
         if: ${{github.event_name == 'push'}}
         run: |
           COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-${GITHUB_REF##*/}
@@ -255,7 +255,7 @@ jobs:
       # will run a preview commit and check how many newly introduced
       # issues are being reported.
 
-      - name: Coverity Security Gate
+      - name: Coverity Security Gate (Incremental analysis)
         if: ${{github.event_name == 'pull_request'}}
         run: |
           COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-${GITHUB_REF##*/}
