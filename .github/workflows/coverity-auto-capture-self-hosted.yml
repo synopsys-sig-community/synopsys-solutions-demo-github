@@ -258,7 +258,7 @@ jobs:
       - name: Coverity Security Gate (Incremental analysis)
         if: ${{github.event_name == 'pull_request'}}
         run: |
-          COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-${GITHUB_REF##*/}
+          export COVERITY_STREAM_NAME=${GITHUB_REPOSITORY##*/}-$BASE_BRANCH
           echo RUN cov-commit-defects --dir idir --security-file coverity-license.dat --url ${COVERITY_URL} --preview-report-v2 preview-report.json --stream ${COVERITY_STREAM_NAME}
           cov-commit-defects --dir idir --security-file coverity-license.dat --url ${COVERITY_URL} --preview-report-v2 preview-report.json --stream ${COVERITY_STREAM_NAME}
           NUM_NEW_DEFECTS=`cat preview-report.json | jq -re .issueInfo[].presentInComparisonSnapshot | grep false | wc -l`
@@ -267,6 +267,8 @@ jobs:
           else
             echo "SECURITY_GATE_STATUS=success" >> $GITHUB_ENV
           fi
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
 
       - uses: ouzi-dev/commit-status-updater@v1.1.0
         with:
