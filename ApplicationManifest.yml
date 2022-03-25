@@ -1,0 +1,18 @@
+application:
+  appId: sig-employee-store
+  assetId: sig-employee-store
+  projectLanguage: NodeJS
+  platformVersion: NodeJS 10
+  buildSystem: node
+  riskMatrixRevision: employeeApps-1.0
+  sourceFilePattern: ".*\\+\\+\\+.*(\\.java)+.*"
+  sensitivePackagePattern: "password"
+  fileChangeThreshold: 5
+
+environment:
+  enableJira: false
+  enableScm: false
+  scmOwner: "xenserverarmy"
+  scmRepositoryName: "expressCart"
+  scmBranchName: "master"
+  githubApiUrl: "https://api.github.com/repos/"

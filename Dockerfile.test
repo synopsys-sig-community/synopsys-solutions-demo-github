@@ -1,0 +1,32 @@
+FROM mhart/alpine-node:10
+
+RUN apk add --no-cache make gcc g++ python bash
+
+WORKDIR /var/expressCart
+
+COPY lib/ /var/expressCart/lib/
+COPY bin/ /var/expressCart/bin/
+COPY config/ /var/expressCart/config/
+COPY public/ /var/expressCart/public/
+COPY routes/ /var/expressCart/routes/
+COPY views/ /var/expressCart/views/
+
+COPY app.js /var/expressCart/
+COPY package.json /var/expressCart/
+COPY gulpfile.js /var/expressCart/
+
+RUN npm install
+
+VOLUME /var/expressCart/data
+
+# allow non-root k8s config settings
+RUN chgrp -R 0 /var/expressCart && chmod -R g+rw /var/expressCart
+RUN mkdir /.npm && chgrp -R 0 /.npm && chmod -R g+rw /.npm
+RUN mkdir /.config && chgrp -R 0 /.config && chmod -R g+rw /.config
+
+#set test environment
+COPY testing.sh /var/expressCart/
+RUN chmod g+x testing.sh && mkdir /tmp/testing && chgrp -R 0 /tmp/testing && chmod -R g+rw /tmp/testing
+
+EXPOSE 1111
+ENTRYPOINT ["./testing.sh"]

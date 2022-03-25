@@ -1,0 +1,188 @@
+@Library("stargazer-io@ssdc-pipe") _
+
+def prescription
+
+pipeline {
+
+    environment {
+        APP_NAME = 'expresscart'
+        TYPE = 'ssdc'
+        PROJECT_NAME = 'SIG Employee Store - SSDC'
+        NEXUS_VERSION = "nexus3"
+        NEXUS_PROTOCOL = "http"
+        NEXUS_URL = "nexus.nexus.svc:8081"
+        NEXUS_REPOSITORY = "vebc"
+        NEXUS_CREDENTIAL_ID = "nexus-credentials"
+        STARGAZER_URL = credentials('stargazer-url')
+    }
+    
+    agent
+    {
+        node {
+                label 'nodejs'
+        }
+    }
+    
+    stages 
+    {
+        stage('Pull code') {
+            steps {
+                echo 'start'
+
+                git changelog: false, poll: false, url: "https://github.com/xenserverarmy/${env.APP_NAME}"
+
+            }
+        }
+        
+        stage ('Load AST prescription') {
+            steps {
+                script {
+                    prescription = loadPrescription('ApplicationManifest.yml','SecurityManifest.yml')
+                }
+            }
+        }
+
+        stage ('Build') {
+            steps {
+                sh "npm install"
+                sh "tar -czf /tmp/artifacts.tgz ."
+                
+                nexusArtifactUploader(
+                    nexusVersion: NEXUS_VERSION,
+                    protocol: NEXUS_PROTOCOL,
+                    nexusUrl: NEXUS_URL,
+                    groupId: APP_NAME,
+                    version: TYPE,
+                    repository: NEXUS_REPOSITORY,
+                    credentialsId: NEXUS_CREDENTIAL_ID,
+                    artifacts: [
+                        [artifactId: "artifacts",
+                        classifier: '',
+                        file: "/tmp/artifacts.tgz",
+                        type: "tgz"]
+                    ]
+                )
+            }
+        }
+
+        stage ('Download Synopsys tools') {
+            steps {
+                script {
+                    sh ("mkdir /tmp/synopsys")
+
+                    if (shouldScan (prescription, "sca") || shouldScan (prescription, "image")) {
+                        sh ("mkdir /tmp/synopsys/detect")
+                        sh ("curl --insecure -L -o /tmp/synopsys/detect/synopsys-detect.jar https://repo.blackducksoftware.com/artifactory/bds-integrations-release/com/synopsys/integration/synopsys-detect/5.6.2/synopsys-detect-5.6.2.jar")
+                    }
+
+                    if (shouldScan (prescription, "sast")) {
+                        sh ("mkdir /tmp/synopsys/polaris")
+                        sh ("curl --insecure -L -o /tmp/synopsys/polaris/polaris.zip https://sipse.polaris.synopsys.com/api/tools/polaris_cli-linux64.zip")
+                        sh ("cd /tmp/synopsys/polaris &&  unzip polaris.zip ")
+                    }
+                }
+            }
+        }
+     
+        stage ('Synopsys Code Analysis') {
+            parallel {
+
+                stage ('Black Duck') {
+                    stages {
+                        stage ('Black Duck Source Scan') {
+                            when { 
+                                expression {
+                                    return shouldScan (prescription, "sca")
+                                }
+                            }
+                            steps {
+                                script {
+                                    withCredentials([
+                                        string(credentialsId: 'testing-blackduck-url', variable: 'BDURL'),
+                                        string(credentialsId: 'testing-blackduck-api-token', variable: 'TOKEN')
+                                        ]){
+                                            sh 'java -jar /tmp/synopsys/detect/synopsys-detect.jar --blackduck.url=\"$BDURL\" --detect.report.timeout=600  --detect.project.name=\"' + env.PROJECT_NAME + '\" --detect.project.version.name=demo --detect.code.location.name=\"' + env.APP_NAME + '-source\" --blackduck.trust.cert=true --blackduck.api.token=\"$TOKEN\" --detect.tools=DETECTOR'
+                                    }
+                                prescription = completedScan (prescription, "sca")
+                                }
+                            }
+                        }
+                        
+                        stage ('Black Duck Image Scan') {
+                            when { 
+                                expression {
+                                    return shouldScan (prescription, "image")
+                                }
+                            }
+                            steps {
+                                script {
+                                    sh ( 'test -f ./download-frozen-image-v2-silent.sh || wget -q https://raw.githubusercontent.com/xenserverarmy/moby/master/contrib/download-frozen-image-v2-silent.sh -O download-frozen-image-v2-silent.sh && chmod +x download-frozen-image-v2-silent.sh')
+
+                                    sh ( 'test -f ./jq || wget -q https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O jq && chmod +x jq')
+
+                                    sh ( 'test -f ./go.tar.gz || wget -q https://dl.google.com/go/go1.12.8.linux-amd64.tar.gz -O go.tar.gz && tar -xzf go.tar.gz')
+                                    
+                                    sh ( 'test -f ./docker-squash || wget -q https://vebc.s3.amazonaws.com/utils/docker-squash -O docker-squash && chmod +x docker-squash')
+
+
+                                    BASE_IMAGE = sh ( script: "grep -Po \'FROM\\s\\K[^\\n]*\' ./Dockerfile.test", returnStdout: true).trim()
+                                    
+                                    sh ("env PATH=$PATH:.:./go/bin ./download-frozen-image-v2-silent.sh output ${BASE_IMAGE} && tar -cf image.tar -C output . && rm -Rf output")
+
+                                    EXTRACT_TMP = sh ( script: 'mktemp -d', returnStdout: true).trim()
+                                    
+                                    sh ("env TAR_OPTIONS=\"--no-same-owner\" ./docker-squash --merge -verbose  -i ./image.tar -o $EXTRACT_TMP/out.tar"  )
+                                    
+                                    withCredentials([
+                                        string(credentialsId: 'testing-blackduck-url', variable: 'BDURL'),
+                                        string(credentialsId: 'testing-blackduck-api-token', variable: 'TOKEN')
+                                        ]){
+                                            sh ("env JAVA_TOOL_OPTIONS=\"\" java -jar /tmp/synopsys/detect/synopsys-detect.jar --blackduck.url=$BDURL --detect.blackduck.signature.scanner.paths=\'$EXTRACT_TMP\' --detect.source.path=\'$EXTRACT_TMP\' --detect.report.timeout=2800 --detect.project.name=\'$BASE_IMAGE\' --detect.project.version.name=demo --detect.code.location.name=\'$BASE_IMAGE-base-image\' --blackduck.trust.cert=true --blackduck.api.token=$TOKEN --detect.tools.excluded=BAZEL,DETECTOR,DOCKER,BINARY_SCAN,POLARIS")
+                                    }
+                                    
+                                    sh ("rm -Rf $EXTRACT_TMP/out.tar"  )
+                                    prescription = completedScan (prescription, "image")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage ('Coverity on Polaris') {
+                    when { 
+                        expression {
+                            return shouldScan (prescription, "sast")
+                        }
+                    }
+                    steps {
+                        script {
+                            TOOL_DIR = sh ( script: 'echo $( find /tmp/synopsys/polaris -maxdepth 1 -type d -name polaris_cli* -print -quit)', returnStdout: true).trim()
+                            
+                            withCredentials([
+                                string(credentialsId: 'polaris-url', variable: 'POLARISURL'),
+                                string(credentialsId: 'ssdc-polaris-api-key', variable: 'TOKEN')
+                                ]){
+                                    sh "env JAVA_TOOL_OPTIONS=\"\" POLARIS_SERVER_URL=\"$POLARISURL\" POLARIS_ACCESS_TOKEN=\"$TOKEN\" $TOOL_DIR/bin/polaris analyze -w --upload-local-config"
+                            }
+                            
+                            prescription = completedScan (prescription, "sast")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Transfer prescription to CI') {
+            steps {
+                stashPrescription (prescription)
+                echo 'end'
+            }
+        }
+        
+        stage('End') {
+            steps {
+                echo 'end'
+            }
+        }
+    }
+}

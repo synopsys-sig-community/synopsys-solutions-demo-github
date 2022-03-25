@@ -1,0 +1,18 @@
+---
+security:
+  pipeline:
+    type: "csf"
+    toolchain: "Hybrid"
+  activities:
+    sast:
+      rescanThreshold: 2
+    sca:
+      rescanThreshold: 3
+    image:
+      rescanThreshold: 4
+    dast:
+      rescanThreshold: 3
+    dastplusm:
+      enabled: false
+    sastplusm:
+      enabled: false

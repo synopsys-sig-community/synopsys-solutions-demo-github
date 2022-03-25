@@ -1,0 +1,163 @@
+@Library("stargazer-io@ssdc-pipe") _
+
+def prescription
+
+pipeline {
+    
+    environment {
+        APP_NAME = 'expresscart'
+        TYPE = 'ssdc'
+        BASE_IMAGE = 'mhart/alpine-node:8'
+        BUILD_JOB = 'build-swag-store-nodejs-synopsys'
+        seekerProject = 'express_cart_ebc'
+        projectVersion = "SIG-1.6.13"
+        tinfoilProject = 'sig-employee-store-ssdc'
+        STARGAZER_URL = credentials('stargazer-url')
+    }
+    
+    agent
+    {
+        node {
+                label 'linux'
+                customWorkspace "${env.JobPath}"
+        }
+    }
+    
+    stages 
+    {
+        stage('Start') {
+            steps {
+                echo 'start'
+            }
+        }
+
+        stage ('Build') {
+            steps {
+                script {
+                    build job: env.BUILD_JOB, propagate: true, wait: true
+                }
+
+            }
+        }
+        
+        stage ('Restore artifacts') {
+            steps {
+                script {
+                    sh("curl -o artifacts.tgz  http://nexus.nexus.svc:8081/repository/vebc/${env.APP_NAME}/artifacts/${env.TYPE}/artifacts-${env.TYPE}.tgz")
+                    sh ("tar xfz artifacts.tgz && cp -f Dockerfile.test Dockerfile")
+                }
+
+            }
+        } 
+        
+        stage ('Load AST prescription') {
+            steps {
+                script {
+                    prescription = unstashPrescription()
+                }
+            }
+        }
+
+        stage ('Create Image'){
+            steps {
+                script {
+                
+                    /* Handle updates to base image */
+                    sh ( 'test -f ./jq || curl -o jq -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && chmod +x jq')
+
+                    TARGET_BASE_IMAGE = sh ( script: "grep -Po \'^\\s*FROM\\s+\\K[^\\n]*\' ./Dockerfile", returnStdout: true).trim()
+                    echo "Desired image: ${TARGET_BASE_IMAGE}"
+                    
+                    CURRENT_BASE_IMAGE = ""
+                    try {
+                        CURRENT_BASE_IMAGE = sh ( script: "if oc describe bc/${env.APP_NAME}-${env.TYPE} > /dev/null ; then oc get buildconfig/${env.APP_NAME}-${env.TYPE} -o json | ./jq '.spec.strategy.dockerStrategy.from.name' | sed 's/\"//g'; else echo -n ''; fi", returnStdout: true).trim()
+                    } catch (err) {
+                        echo err.getMessage()
+                    }
+                    
+                    echo "Current image: $CURRENT_BASE_IMAGE"
+                    
+                    if (CURRENT_BASE_IMAGE == "") {
+                        BASE_IMAGE = TARGET_BASE_IMAGE
+                    }         
+                    else {
+                        size = TARGET_BASE_IMAGE.split('/').size()
+                        echo "Size: $size"
+                        if (size == 2) {
+                            BASE_IMAGE = TARGET_BASE_IMAGE.split('/')[1]
+                            
+                            if (BASE_IMAGE != CURRENT_BASE_IMAGE) {
+                                sh ( script: "oc delete bc/${env.APP_NAME}-${env.TYPE};", returnStdout: true).trim()
+                            }
+                        } else {
+                            BASE_IMAGE = CURRENT_BASE_IMAGE
+                        }
+                    }
+                    
+                    echo "Configuring image: $BASE_IMAGE"
+
+                    try {
+                        sh "if oc describe bc/${env.APP_NAME}-${env.TYPE} > /dev/null ; then echo \"config exists\"; else oc new-build --strategy docker --binary --docker-image $BASE_IMAGE --name ${env.APP_NAME}-${env.TYPE}; fi"
+                    } catch (err) {
+                        // oc new-build will return an error if *any* of the dependencies already exist - so catch it and let the remainder fail which should prompt a look at hte logs
+                        echo err.getMessage()
+                    }
+                    sh "oc start-build ${env.APP_NAME}-${env.TYPE} --from-dir ./ --follow"
+
+                }
+
+            }
+        }
+        
+        stage ('Publish app'){
+            steps {
+                script {
+                    sh "if oc describe dc/${env.APP_NAME}-${env.TYPE} > /dev/null; then echo \"deployment config exists\"; else oc new-app ${env.APP_NAME}-${env.TYPE}; oc expose svc/${env.APP_NAME}-${env.TYPE}; fi"
+                }
+            }
+        }  
+        
+        stage ('Enable Synopsys Seeker on App'){
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'testing-seeker-url', variable: 'SEEKERURL')
+                        ]){
+                            sh "oc set env dc/${env.APP_NAME}-${env.TYPE} --overwrite SEEKER_SERVER_URL=\"$SEEKERURL\""
+                    }
+
+                    sh "oc set env dc/${env.APP_NAME}-${env.TYPE} --overwrite SEEKER_PROJECT_KEY=\"${env.seekerProject}\""
+                    sh "oc set volume dc/${env.APP_NAME}-${env.TYPE} --add --overwrite --name=seeker-vol --path=/var/seeker --mount-path=/seeker"
+                    
+                    sleep 15 /*wait for agent startup */
+                }
+            }
+        }
+        
+        stage ('Trigger Synopsys Tinfoil Web Scan'){
+            when { 
+                expression {
+                    return shouldScan (prescription, "dast")
+                }
+            }
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'tinfoil-url', variable: 'TINFOILURL'),
+                        string(credentialsId: 'tinfoil-token', variable: 'TOKEN'),
+                        string(credentialsId: 'tinfoil-access-key', variable: 'ACCESS_KEY')
+                        ]){
+                            sh "curl $TINFOILURL/api/v1/sites/${env.tinfoilProject}/scans -d '' -H 'Authorization:Token token=$TOKEN, access_key=$ACCESS_KEY'"
+                    }
+                    prescription = completedScan (prescription, "dast")
+                }
+            }
+        }        
+
+        stage('End') {
+            steps {
+                echo 'end'
+            }
+        }
+    }
+}
