@@ -207,23 +207,6 @@ jobs:
             --checkoutPath $GITHUB_REPOSITORY `pwd` $GITHUB_SHA \
             --outputFile synopsys-coverity-github-sarif.json
 
-      # The coverity-report-output-v7-json action will take the results from Coverity and present them
-      # as review feedback on pull request
-      - name: Coverity Pull Request Feedback
-        if: ${{github.event_name == 'pull_request'}}
-        uses: synopsys-sig/coverity-report-output-v7-json@v0.0.1
-        with:
-          # The following parameters are REQUIRED
-          json-file-path: ./coverity-incremental-results.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # If the following optional parameters are specified, the results from the JSON output will be
-          # compared to the baseline issues in the specified project, and only NEW issues will be reported
-          # in the pull request.
-          coverity-url: ${{ secrets.COVERITY_URL }}
-          coverity-project-name: ${{ github.event.repository.name }}
-          coverity-username: ${{ secrets.COVERITY_USER }}
-          coverity-password: ${{ secrets.COVERITY_PASSPHRASE }}
-
       - name: Upload SARIF file
         if: ${{github.event_name == 'push'}}
         uses: github/codeql-action/upload-sarif@v1
