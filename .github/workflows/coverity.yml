@@ -38,5 +38,6 @@ jobs:
           coverity_passphrase: ${{ secrets.COVERITY_PASSPHRASE }}
           coverity_project_name: ${{ github.event.repository.name }}
           coverity_checker_options: --webapp-security
+          build_command: mvn compile
           security_gate_view: OWASP Web Top 10
           github_token: ${{ secrets.GITHUB_TOKEN }}
