@@ -33,12 +33,11 @@ jobs:
 
       - uses: synopsys-sig-community/synopsys-github-templates/coverity@main
         with:
-          coverity_url: ${{ secrets.COVERITY_URL }}
-          coverity_user: ${{ secrets.COVERITY_USER }}
-          coverity_passphrase: ${{ secrets.COVERITY_PASSPHRASE }}
-          coverity_project_name: ${{ github.event.repository.name }}
-          coverity_checker_options: --webapp-security
-          security_gate_view: OWASP Web Top 10
+          coverity-url: ${{ secrets.COVERITY_URL }}
+          coverity-user: ${{ secrets.COVERITY_USER }}
+          coverity-passphrase: ${{ secrets.COVERITY_PASSPHRASE }}
+          coverity-project-name: ${{ github.event.repository.name }}
+          coverity-checker-options: --webapp-security
+          security-gate-view-name: OWASP Web Top 10
           create-stream-and-project: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          test-param: A test param
+          github-token: ${{ secrets.GITHUB_TOKEN }}
