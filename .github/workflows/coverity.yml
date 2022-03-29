@@ -41,3 +41,4 @@ jobs:
           build_command: mvn compile
           security_gate_view: OWASP Web Top 10
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          test-param: A test param
