@@ -42,3 +42,4 @@ jobs:
           create-stream-and-project: true
           diagnostic-mode: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
