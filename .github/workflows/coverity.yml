@@ -40,4 +40,5 @@ jobs:
           coverity-checker-options: --webapp-security
           security-gate-view-name: OWASP Web Top 10
           create-stream-and-project: true
+          diagnostic-mode: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
