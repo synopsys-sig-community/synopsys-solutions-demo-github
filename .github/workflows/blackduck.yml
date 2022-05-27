@@ -53,7 +53,6 @@ jobs:
             blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
 
       - name: Black Duck (Full scan)
-        id: blackduck-full-scan
         if: ${{ github.event_name != 'pull_request' }}
         uses: synopsys-sig/detect-action@main
         # You can use this option to configure a CA cert if using a self-hosted runner and self-signed
@@ -61,37 +60,9 @@ jobs:
         # with the CA chain cert
         #env:
         #  NODE_EXTRA_CA_CERTS: ${{ secrets.LOCAL_CA_CERT_PATH }}
-        #
-        # In order to track Black Duck policy for an intelligent scan, we must preserve the output
-        # files and set a policy failure. In this case on BLOCKER,HIGH,MAJOR:
-        env:
-          DETECT_CLEANUP: false
-          DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: BLOCKER,CRITICAL,MAJOR
         with:
           scan-mode: INTELLIGENT
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.12.0
           blackduck-url: ${{ secrets.BLACKDUCK_URL }}
           blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
-          fail-on-all-policy-severities: true
-        #continue-on-error: true
-
-      - name: Black Duck Results (Full scan)
-        if: ${{ steps.blackduck-full-scan.conclusion == 'success' }}
-        shell: bash
-        run: |
-          BLACKDUCK_RESULTS_URL=`jq -r '.results[0].location' /home/runner/work/_temp/blackduck/runs/*/status/status.json`
-          echo "BLACKDUCK_RESULTS_URL=$BLACKDUCK_RESULTS_URL" >> $GITHUB_ENV
-          if [ "${{ steps.blackduck-full-scan.outcome }}" == "failure" ]; then
-            echo "BLACKDUCK_STATUS=failure" >> $GITHUB_ENV
-          else
-          echo "BLACKDUCK_STATUS=success" >> $GITHUB_ENV
-          fi
-
-      - name: Black Duck Status Check (Full scan)
-        if: ${{ steps.blackduck-full-scan.conclusion == 'success' }}
-        uses: ouzi-dev/commit-status-updater@v1.1.0
-        with:
-          name: "Black Duck Policy Check (Full scan)"
-          status: "${{ env.BLACKDUCK_STATUS }}"
-          url: "${{ env.BLACKDUCK_RESULTS_URL }}"
