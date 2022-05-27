@@ -53,7 +53,7 @@ jobs:
             blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
 
       - name: Black Duck (Full scan)
-        id: blackduck-full-scan
+        id: blackduck_full_scan
         if: ${{ github.event_name != 'pull_request' }}
         uses: synopsys-sig/detect-action@main
         # You can use this option to configure a CA cert if using a self-hosted runner and self-signed
@@ -70,7 +70,7 @@ jobs:
         #continue-on-error: true
 
       - name: Black Duck Results (Full scan)
-        if: ${{ steps.blackduck-full-scan.conclusion == "success" }}
+        if: ${{ steps.blackduck_full_scan.conclusion == "success" }}
         shell: bash
         run: |
           BLACKDUCK_RESULTS_URL=`jq -r '.results[0].location' ./blackduck-output/runs/*/status/status.json`
