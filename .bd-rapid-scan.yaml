@@ -1,0 +1,13 @@
+# From https://community.synopsys.com/s/document-item?bundleId=integrations-detect&topicId=downloadingandrunning%2Frapidscan.html&_LANG=enus
+version: 1.0
+policy:
+  overrides:
+  - policyName: High Risk Components with Exploitable Vulnerabilities
+    components:
+    - name: jQuery
+      version: 1.11.1
+  - policyName: No Critical/High
+    components:
+      - name: jQuery
+        version: 1.11.1
+
