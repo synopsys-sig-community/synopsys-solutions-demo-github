@@ -61,6 +61,13 @@ jobs:
         # with the CA chain cert
         #env:
         #  NODE_EXTRA_CA_CERTS: ${{ secrets.LOCAL_CA_CERT_PATH }}
+        #
+        # In order to track Black Duck policy for an intelligent scan, we must preserve the output
+        # files and set a policy failure. In this case on BLOCKER,HIGH,MAJOR:
+        env:
+          DETECT_CLEANUP: false
+          DETECT_OUTPUT_PATH: ./blackduck-output
+          DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: BLOCKER,CRITICAL,MAJOR
         with:
           scan-mode: INTELLIGENT
           github-token: ${{ secrets.GITHUB_TOKEN }}
