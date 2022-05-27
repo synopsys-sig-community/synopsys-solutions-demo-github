@@ -53,6 +53,7 @@ jobs:
             blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
 
       - name: Black Duck (Full scan)
+        id: blackduck-full-scan
         if: ${{ github.event_name != 'pull_request' }}
         uses: synopsys-sig/detect-action@main
         # You can use this option to configure a CA cert if using a self-hosted runner and self-signed
@@ -60,20 +61,30 @@ jobs:
         # with the CA chain cert
         #env:
         #  NODE_EXTRA_CA_CERTS: ${{ secrets.LOCAL_CA_CERT_PATH }}
-        #
-        # Enable Black Duck risk report
-        env:
-          DETECT_RISK_REPORT_PDF: true
         with:
           scan-mode: INTELLIGENT
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.12.0
           blackduck-url: ${{ secrets.BLACKDUCK_URL }}
           blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+        #continue-on-error: true
 
-      - name: Black Duck Report (Full scan)
-        uses: actions/upload-artifact@v3
+      - name: Black Duck Results (Full scan)
+        if: steps.blackduck-full-scan.conclusion == "success"
+        shell: bash
+        run: |
+          BLACKDUCK_RESULTS_URL=`jq -r '.results[0].location' ./blackduck-output/runs/*/status/status.json`
+          echo "BLACKDUCK_RESULTS_URL=$BLACKDUCK_RESULTS_URL" >> $GITHUB_ENV
+          if [ "${{ steps.blackduck-full-scan.outcome }}" == "failure" ]; then
+            echo "BLACKDUCK_STATUS=failure" >> $GITHUB_ENV
+          else
+          echo "BLACKDUCK_STATUS=success" >> $GITHUB_ENV
+          fi
+
+      - name: Black Duck Status Check (Full scan)
+        if: steps.blackduck-full-scan.conclusion == "success"
+        uses: ouzi-dev/commit-status-updater@v1.1.0
         with:
-          name: blackduck-risk-report
-          path: |
-            *_BlackDuck_RiskReport.pdf
+          name: "Black Duck Policy Check (Full scan)"
+          status: "${{ env.BLACKDUCK_STATUS }}"
+          url: "${{ env.BLACKDUCK_RESULTS_URL }}"
