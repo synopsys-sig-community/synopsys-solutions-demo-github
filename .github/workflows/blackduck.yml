@@ -66,7 +66,6 @@ jobs:
         # files and set a policy failure. In this case on BLOCKER,HIGH,MAJOR:
         env:
           DETECT_CLEANUP: false
-          DETECT_OUTPUT_PATH: ./blackduck-output
           DETECT_POLICY_CHECK_FAIL_ON_SEVERITIES: BLOCKER,CRITICAL,MAJOR
         with:
           scan-mode: INTELLIGENT
@@ -80,7 +79,7 @@ jobs:
         if: ${{ steps.blackduck-full-scan.conclusion == 'success' }}
         shell: bash
         run: |
-          BLACKDUCK_RESULTS_URL=`jq -r '.results[0].location' ./blackduck-output/runs/*/status/status.json`
+          BLACKDUCK_RESULTS_URL=`jq -r '.results[0].location' /home/runner/work/_temp/blackduck/runs/*/status/status.json`
           echo "BLACKDUCK_RESULTS_URL=$BLACKDUCK_RESULTS_URL" >> $GITHUB_ENV
           if [ "${{ steps.blackduck-full-scan.outcome }}" == "failure" ]; then
             echo "BLACKDUCK_STATUS=failure" >> $GITHUB_ENV
