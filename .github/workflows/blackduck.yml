@@ -73,6 +73,7 @@ jobs:
           detect-version: 7.12.0
           blackduck-url: ${{ secrets.BLACKDUCK_URL }}
           blackduck-api-token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+          fail-on-all-policy-severities: true
         #continue-on-error: true
 
       - name: Black Duck Results (Full scan)
