@@ -1,4 +1,4 @@
-name: Black Duck
+name: Black Duck (Rapid)
 
 # Run Rapid Scan on all pull requests and pushes to a main branch
 on:
